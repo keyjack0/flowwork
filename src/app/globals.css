@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #685AFF;
+  --primary-light: #8B7FFF;
+  --primary-dark: #4A3FCC;
+  --primary-bg: rgba(104, 90, 255, 0.08);
+  --primary-border: rgba(104, 90, 255, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #F7F7FB;
+  color: #1A1A2E;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #F0EFF8;
+}
+::-webkit-scrollbar-thumb {
+  background: #C5BFFF;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #685AFF;
+}
+
+/* Custom focus ring */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(104, 90, 255, 0.3);
+  outline-offset: 0;
+}
+
+/* Midtrans Snap popup override */
+#snap-container {
+  z-index: 9999 !important;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#685AFF] text-white hover:bg-[#4A3FCC] transition-colors font-medium rounded-lg px-4 py-2 text-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors font-medium rounded-lg px-4 py-2 text-sm;
+  }
+
+  .btn-danger {
+    @apply bg-red-500 text-white hover:bg-red-600 transition-colors font-medium rounded-lg px-4 py-2 text-sm;
+  }
+
+  .card {
+    @apply bg-white border border-gray-100 rounded-xl shadow-sm;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-['Poppins'] text-gray-800 bg-white transition-all;
+  }
+
+  .input-field:focus {
+    @apply border-[#685AFF];
+  }
+
+  .label {
+    @apply block text-xs font-medium text-gray-500 mb-1;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-primary {
+    @apply bg-[rgba(104,90,255,0.1)] text-[#685AFF];
+  }
+
+  .badge-success {
+    @apply bg-green-50 text-green-700;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-50 text-yellow-700;
+  }
+
+  .badge-danger {
+    @apply bg-red-50 text-red-700;
+  }
+
+  .badge-gray {
+    @apply bg-gray-100 text-gray-600;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.slide-in {
+  animation: slideIn 0.25s ease-out;
+}
+
+/* Midtrans Snap Modal */
+.midtrans-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
