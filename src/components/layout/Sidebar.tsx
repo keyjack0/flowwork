@@ -18,17 +18,17 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Utama' },
   { href: '/kasir', label: 'Kasir (POS)', icon: Monitor, section: 'Utama' },
-  { href: '/stok', label: 'Manajemen Stok', icon: Package, section: 'Manajemen', badge: 3 },
+  { href: '/stok', label: 'Manajemen Stok', icon: Package, section: 'Manajemen' },
   { href: '/hpp', label: 'Kalkulator HPP', icon: Calculator, section: 'Manajemen' },
-  { href: '/keuangan', label: 'Laporan Keuangan', icon: TrendingUp, section: 'Keuangan' },
-  { href: '/pengeluaran', label: 'Pengeluaran', icon: FileText, section: 'Keuangan' },
-  
+  { href: '/keuangan', label: 'Laporan Keuangan', icon: TrendingUp, section: 'Manajemen' },
+  { href: '/pengeluaran', label: 'Pengeluaran', icon: FileText, section: 'Manajemen' },
+
 ]
 
 
@@ -41,8 +41,25 @@ export default function Sidebar({ userName = 'User', userRole = 'Kasir' }: Sideb
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [lowStockCount, setLowStockCount] = useState(0)
 
-  const sections = ['Utama', 'Manajemen', 'Keuangan']
+  const sections = ['Utama', 'Manajemen']
+
+  useEffect(() => {
+    const fetchLowStock = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('products')
+        .select('stock, min_stock_alert')
+        .eq('is_active', true)
+
+      if (data) {
+        const count = data.filter(p => p.stock > 0 && p.stock <= p.min_stock_alert).length
+        setLowStockCount(count)
+      }
+    }
+    fetchLowStock()
+  }, [])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -87,9 +104,9 @@ export default function Sidebar({ userName = 'User', userRole = 'Kasir' }: Sideb
                   >
                     <item.icon size={15} className="flex-shrink-0" />
                     <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                        {item.badge}
+                    {item.href === '/stok' && lowStockCount > 0 && (
+                      <span className="text-[10px] font-medium text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                        {lowStockCount}
                       </span>
                     )}
                   </Link>

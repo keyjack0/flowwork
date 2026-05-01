@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const status = await checkTransactionStatus(orderId)
     const internalStatus = mapMidtransStatus(status.transaction_status, status.fraud_status)
 
-    // Update DB jika status berubah
+    // Ambil data transaksi saat ini
     const { data: tx } = await supabase
       .from('transactions')
       .select('id, status')
@@ -27,6 +27,32 @@ export async function GET(req: NextRequest) {
         .from('transactions')
         .update({ status: internalStatus, midtrans_payment_type: status.payment_type, updated_at: new Date().toISOString() })
         .eq('id', tx.id)
+
+      // Finalisasi sekali saja saat status pertama kali menjadi success.
+      // Ini fallback jika webhook tidak terkirim saat sandbox/local.
+      if (internalStatus === 'success' && tx.status !== 'success') {
+        const { data: txItems } = await supabase
+          .from('transaction_items')
+          .select('product_id, quantity')
+          .eq('transaction_id', tx.id)
+
+        if (txItems) {
+          for (const item of txItems) {
+            await supabase.rpc('decrement_stock', {
+              p_product_id: item.product_id,
+              p_qty: item.quantity,
+            })
+
+            await supabase.from('stock_logs').insert({
+              product_id: item.product_id,
+              change_amount: -item.quantity,
+              reason: 'Sales',
+              reference_id: tx.id,
+              created_by: user.id,
+            })
+          }
+        }
+      }
     }
 
     return NextResponse.json({

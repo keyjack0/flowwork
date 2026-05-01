@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    // Hindari update berulang jika sudah sukses
-    if (transaction.status === 'success' && internalStatus !== 'success') {
+    // Idempotent guard: jika transaksi sudah sukses, jangan proses ulang.
+    if (transaction.status === 'success') {
       return NextResponse.json({ message: 'Already processed' })
     }
 

@@ -1,8 +1,8 @@
-# 🚀 Flowwork — Aplikasi Manajemen Bisnis
+# Flowwork — Aplikasi Manajemen Bisnis
 
 Aplikasi manajemen bisnis terintegrasi dengan fitur POS, stok, laporan keuangan, dan **pembayaran Midtrans**.
 
-## ✨ Fitur Utama
+## Fitur Utama
 
 | Modul | Fitur |
 |-------|-------|
@@ -14,7 +14,7 @@ Aplikasi manajemen bisnis terintegrasi dengan fitur POS, stok, laporan keuangan,
 | **Keuangan** | P&L statement, laporan harian/bulanan, cash flow |
 | **Pengeluaran** | Pencatatan pengeluaran per kategori |
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js 14 (App Router) + TypeScript
 - **Styling**: Tailwind CSS + Font Poppins
@@ -27,7 +27,7 @@ Aplikasi manajemen bisnis terintegrasi dengan fitur POS, stok, laporan keuangan,
 
 ---
 
-## 🚦 Quick Start
+## Quick Start
 
 ### 1. Clone & Install
 
@@ -80,7 +80,7 @@ Buka `http://localhost:3000`
 
 ---
 
-## 💳 Setup Midtrans
+## Setup Midtrans
 
 ### Mendapatkan API Keys
 
@@ -101,7 +101,7 @@ Buka `http://localhost:3000`
    https://yourdomain.com/kasir/payment-result
    ```
 
-> ⚠️ Untuk development lokal, gunakan **ngrok** atau **localtunnel** agar Midtrans bisa mengirim webhook:
+> Untuk development lokal, gunakan **ngrok** atau **localtunnel** agar Midtrans bisa mengirim webhook:
 > ```bash
 > npx localtunnel --port 3000
 > ```
@@ -116,7 +116,7 @@ Buka `http://localhost:3000`
 
 ---
 
-## 📁 Struktur Folder
+## Struktur fitur inti Folder 
 
 ```
 flowwork/
@@ -154,7 +154,7 @@ flowwork/
 
 ---
 
-## 🔐 Role & Akses
+## Role & Akses
 
 | Role | Akses |
 |------|-------|
@@ -183,7 +183,7 @@ vercel deploy
 
 ---
 
-## 🧪 Testing Midtrans Sandbox
+## Testing Midtrans Sandbox
 
 Gunakan kartu/nomor berikut untuk simulasi di sandbox:
 
@@ -197,6 +197,6 @@ Gunakan kartu/nomor berikut untuk simulasi di sandbox:
 
 ---
 
-## 📝 Lisensi
+## Lisensi
 
-MIT License — Flowwork &copy; 2024
+MIT License — Flowwork &copy; 2026

@@ -269,6 +269,7 @@ export default function POSClient({ products }: POSClientProps) {
         open={showPayment}
         onClose={() => setShowPayment(false)}
         onSuccess={handlePaymentSuccess}
+        onNewTransaction={() => { setShowReceipt(false); clearCart(); setShowPayment(false); }}
         cart={cart}
         subtotal={subtotal}
         tax={tax}

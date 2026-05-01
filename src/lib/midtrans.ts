@@ -47,7 +47,7 @@ export async function createSnapTransaction(params: SnapTransactionParams) {
 
   // Tentukan enabled payments berdasarkan tipe
   const enabledPayments = params.paymentType === 'qris'
-    ? ['gopay', 'qris', 'shopeepay', 'dana', 'ovo', 'linkaja']
+    ? ['qris'] // Aktifkan QRIS dan e-wallet terkait
     : params.paymentType === 'bank_transfer'
     ? ['bca_va', 'bni_va', 'bri_va', 'mandiri_bill', 'permata_va']
     : undefined // undefined = semua metode aktif

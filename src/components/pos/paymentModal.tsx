@@ -13,6 +13,7 @@ interface PaymentModalProps {
     open: boolean
     onClose: () => void
     onSuccess: (orderId: string, method: string, change?: number) => void
+    onNewTransaction?: () => void
     cart: CartItem[]
     subtotal: number
     tax: number
@@ -26,7 +27,7 @@ type Method = 'cash' | 'qris' | 'snap'
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000]
 
 export default function PaymentModal({
-    open, onClose, onSuccess,
+    open, onClose, onSuccess, onNewTransaction,
     cart, subtotal, tax, discount, total,
 }: PaymentModalProps) {
     const [step, setStep] = useState<Step>('method')
@@ -161,8 +162,11 @@ export default function PaymentModal({
                 setLoading(false)
                     ; (window as any).snap.pay(data.snapToken, {
                         onSuccess: () => {
-                            setDoneData({ orderId: data.orderId, change: 0, method: 'Midtrans' })
-                            setStep('done')
+                            // Untuk VA/QRIS via Snap, callback sukses UI belum tentu settlement.
+                            // Tetap polling backend sampai status internal benar-benar success.
+                            setSnapOrderId(data.orderId)
+                            setStep('snap_waiting')
+                            startPolling(data.orderId, 'Midtrans')
                         },
                         onPending: () => {
                             setSnapOrderId(data.orderId)
@@ -457,10 +461,10 @@ export default function PaymentModal({
                         </div>
 
                         <div className="flex gap-2">
-                            <button className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                            <button onClick={handleDone} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
                                 🖨️ Cetak Struk
                             </button>
-                            <button onClick={handleDone} className="flex-1 py-2.5 bg-[#685AFF] text-white rounded-xl text-[13px] font-bold hover:bg-[#4A3FCC] transition-colors">
+                            <button onClick={onNewTransaction} className="flex-1 py-2.5 bg-[#685AFF] text-white rounded-xl text-[13px] font-bold hover:bg-[#4A3FCC] transition-colors">
                                 Transaksi Baru
                             </button>
                         </div>

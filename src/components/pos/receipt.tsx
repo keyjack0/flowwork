@@ -130,7 +130,7 @@ export default function Receipt({
                                 <span>{formatRupiah(subtotal)}</span>
                             </div>
                             {discount > 0 && (
-                                <div className="row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#16a34a' }}>
+                                <div className="row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                                     <span>Diskon</span>
                                     <span>- {formatRupiah(discount)}</span>
                                 </div>
