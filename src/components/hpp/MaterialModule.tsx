@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2, Edit2, X, Check, Package } from 'lucide-react'
-import { RawMaterial } from '@/types/hpp'
+import { RawMaterialLegacy as RawMaterial } from '@/types/hpp'
 import { formatRupiah, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 

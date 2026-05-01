@@ -2,7 +2,24 @@
 // FLOWWORK - HPP Module Types
 // =============================================
 
+// Database types (from Supabase)
 export interface RawMaterial {
+  id: string
+  name: string
+  category: string | null
+  buy_price: number
+  buy_unit: string
+  conversion_rate: number
+  yield_pct: number
+  price_per_use: number | null
+  supplier: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Legacy client-side type (for localStorage compatibility)
+export interface RawMaterialLegacy {
   id: string
   name: string
   category: string
@@ -15,6 +32,37 @@ export interface RawMaterial {
   createdAt: string
 }
 
+// Database types
+export interface RecipeIngredientDB {
+  id: string
+  recipe_id: string
+  material_id: string
+  quantity: number
+  unit: string
+  calculated_cost: number
+  notes: string | null
+  created_at: string
+  material?: RawMaterial
+}
+
+export interface RecipeDB {
+  id: string
+  name: string
+  description: string | null
+  total_hpp: number
+  selling_price: number | null
+  recommended_price: number | null
+  margin_pct: number | null
+  profit_per_portion: number | null
+  opex_per_portion: number | null
+  net_profit_per_portion: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  ingredients?: RecipeIngredientDB[]
+}
+
+// Legacy client-side types
 export interface RecipeIngredient {
   materialId: string
   materialName: string
@@ -43,6 +91,26 @@ export interface Addon {
   costPerPortion: number
 }
 
+// Database types
+export interface OpexConfigDB {
+  id: string
+  name: string
+  category: string
+  monthly_amount: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface OpexSettingsDB {
+  id: string
+  target_portions_per_month: number
+  total_monthly_opex: number
+  opex_per_portion: number
+  updated_at: string
+}
+
+// Legacy client-side types
 export interface OpexItem {
   id: string
   name: string
@@ -66,4 +134,30 @@ export interface ProfitSimulation {
   netMarginPct: number
   bepPortions: number    // Break Even Point in portions
   bepRevenue: number
+}
+
+// Customer & Supplier types
+export interface Customer {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  total_orders: number
+  total_spent: number
+  last_order_date: string | null
+  created_at: string
+  customer_tier?: 'VIP' | 'Regular' | 'New'
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  contact_person: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  product_category: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }

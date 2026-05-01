@@ -148,3 +148,21 @@ export interface ExpenseCategory {
   total: number
   percentage: number
 }
+
+// HPP Module Types (re-export from hpp.ts)
+export type {
+  RawMaterial,
+  RawMaterialLegacy,
+  RecipeIngredient,
+  Recipe,
+  RecipeIngredientDB,
+  RecipeDB,
+  Addon,
+  OpexItem,
+  OpexConfig,
+  OpexConfigDB,
+  OpexSettingsDB,
+  ProfitSimulation,
+  Customer,
+  Supplier,
+} from './hpp'

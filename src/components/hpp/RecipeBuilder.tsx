@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2, Search, ChefHat, Copy, X, Check, FlaskConical } from 'lucide-react'
-import { RawMaterial, Recipe, RecipeIngredient, Addon } from '@/types/hpp'
+import { RawMaterialLegacy as RawMaterial, Recipe, RecipeIngredient, Addon } from '@/types/hpp'
 import { formatRupiah, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 

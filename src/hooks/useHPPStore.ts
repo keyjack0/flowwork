@@ -1,171 +1,341 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { RawMaterial, Recipe, OpexConfig, Addon } from '@/types/hpp'
+import { RawMaterialLegacy as RawMaterial, Recipe, OpexConfig } from '@/types/hpp'
+import toast from 'react-hot-toast'
 
-const STORAGE_KEYS = {
-  materials: 'flowwork_hpp_materials',
-  recipes: 'flowwork_hpp_recipes',
-  opex: 'flowwork_hpp_opex',
+type DbRawMaterial = {
+  id: string
+  name: string
+  category: string | null
+  buy_price: number
+  buy_unit: string
+  conversion_rate: number
+  yield_pct: number
+  price_per_use: number | null
+  created_at: string
 }
 
-function load<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch { return fallback }
+type DbRecipe = {
+  id: string
+  name: string
+  description: string | null
+  total_hpp: number
+  opex_per_portion: number | null
+  ingredients?: Array<{
+    material_id: string
+    quantity: number
+    unit: string
+    calculated_cost: number
+    material?: { id: string; name: string }
+  }>
+  created_at: string
 }
 
-function save<T>(key: string, value: T) {
-  if (typeof window === 'undefined') return
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+type DbOpexConfig = {
+  id: string
+  name: string
+  category: 'fixed' | 'variable'
+  monthly_amount: number
+}
+
+type DbOpexSettings = {
+  id: string
+  target_portions_per_month: number
+  total_monthly_opex: number
+  opex_per_portion: number
 }
 
 const DEFAULT_OPEX: OpexConfig = {
-  items: [
-    { id: 'o1', name: 'Sewa Tempat', category: 'fixed', monthlyAmount: 2000000 },
-    { id: 'o2', name: 'Gaji Karyawan', category: 'fixed', monthlyAmount: 3000000 },
-    { id: 'o3', name: 'Listrik & Air', category: 'fixed', monthlyAmount: 500000 },
-  ],
+  items: [],
   targetPortionsPerMonth: 300,
   opexPerPortion: 0,
   totalMonthlyOpex: 0,
+}
+
+function inferUseUnit(buyUnit: string) {
+  if (buyUnit === 'kg') return 'gram'
+  if (buyUnit === 'liter') return 'ml'
+  return 'pcs'
+}
+
+function mapMaterialFromDb(row: DbRawMaterial): RawMaterial {
+  const pricePerUse = row.price_per_use ?? (
+    row.conversion_rate > 0 && row.yield_pct > 0
+      ? Math.round(row.buy_price / row.conversion_rate / (row.yield_pct / 100))
+      : 0
+  )
+
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category || 'Lainnya',
+    buyUnit: row.buy_unit,
+    useUnit: inferUseUnit(row.buy_unit),
+    buyPrice: Number(row.buy_price),
+    conversionRate: Number(row.conversion_rate),
+    yieldPct: Number(row.yield_pct),
+    pricePerUse: Number(pricePerUse || 0),
+    createdAt: row.created_at,
+  }
+}
+
+function mapRecipeFromDb(row: DbRecipe, opexPerPortion: number): Recipe {
+  const ingredients = (row.ingredients || []).map((ing) => ({
+    materialId: ing.material_id,
+    materialName: ing.material?.name || 'Bahan',
+    useUnit: ing.unit || 'gram',
+    qty: Number(ing.quantity),
+    costPerPortion: Number(ing.calculated_cost),
+  }))
+
+  const totalIngredientCost = Math.round(ingredients.reduce((s, i) => s + i.costPerPortion, 0))
+  const totalAddonCost = 0
+  const opex = Number(row.opex_per_portion ?? opexPerPortion)
+  const totalHPP = row.total_hpp ? Number(row.total_hpp) : totalIngredientCost + totalAddonCost + opex
+
+  return {
+    id: row.id,
+    name: row.name,
+    category: 'Lainnya',
+    portionCount: 1,
+    ingredients,
+    addons: [],
+    totalIngredientCost,
+    totalAddonCost,
+    totalHPP,
+    createdAt: row.created_at,
+    notes: row.description || undefined,
+  }
+}
+
+async function req<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json?.error || 'Request gagal')
+  return json as T
 }
 
 export function useHPPStore() {
   const [materials, setMaterials] = useState<RawMaterial[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [opex, setOpex] = useState<OpexConfig>(DEFAULT_OPEX)
+  const [opexSettingsId, setOpexSettingsId] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    setMaterials(load(STORAGE_KEYS.materials, []))
-    setRecipes(load(STORAGE_KEYS.recipes, []))
-    const savedOpex = load<OpexConfig>(STORAGE_KEYS.opex, DEFAULT_OPEX)
-    setOpex(recalcOpex(savedOpex))
-    setLoaded(true)
+  const reloadFromDb = useCallback(async () => {
+    const [materialsRes, recipesRes, opexConfigsRes, opexSettingsRes] = await Promise.all([
+      req<DbRawMaterial[]>('/api/raw-materials?active=true'),
+      req<DbRecipe[]>('/api/recipes?active=true'),
+      req<DbOpexConfig[]>('/api/opex'),
+      req<DbOpexSettings | null>('/api/opex?type=settings'),
+    ])
+
+    const opexItems = (opexConfigsRes || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      category: c.category,
+      monthlyAmount: Number(c.monthly_amount),
+    }))
+    const totalMonthlyOpex = opexItems.reduce((s, i) => s + i.monthlyAmount, 0)
+    const targetPortionsPerMonth = Number(opexSettingsRes?.target_portions_per_month || 300)
+    const opexPerPortion = targetPortionsPerMonth > 0
+      ? Math.round(totalMonthlyOpex / targetPortionsPerMonth)
+      : 0
+
+    setOpexSettingsId(opexSettingsRes?.id || null)
+    setMaterials((materialsRes || []).map(mapMaterialFromDb))
+    setOpex({
+      items: opexItems,
+      targetPortionsPerMonth,
+      totalMonthlyOpex,
+      opexPerPortion,
+    })
+    setRecipes((recipesRes || []).map((r) => mapRecipeFromDb(r, opexPerPortion)))
   }, [])
 
-  function recalcOpex(o: OpexConfig): OpexConfig {
-    const total = o.items.reduce((s, i) => s + i.monthlyAmount, 0)
-    const perPortion = o.targetPortionsPerMonth > 0 ? Math.round(total / o.targetPortionsPerMonth) : 0
-    return { ...o, totalMonthlyOpex: total, opexPerPortion: perPortion }
+  useEffect(() => {
+    let active = true
+
+    ;(async () => {
+      try {
+        await reloadFromDb()
+      } catch (error: any) {
+        if (active) toast.error(`Gagal memuat data HPP: ${error.message}`)
+      } finally {
+        if (active) setLoaded(true)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [reloadFromDb])
+
+  async function syncOpexSettings(next: OpexConfig) {
+    try {
+      const payload = {
+        type: 'settings',
+        id: opexSettingsId || undefined,
+        target_portions_per_month: next.targetPortionsPerMonth,
+        total_monthly_opex: next.totalMonthlyOpex,
+        opex_per_portion: next.opexPerPortion,
+      }
+
+      const data = await req<DbOpexSettings>('/api/opex', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      setOpexSettingsId(data.id)
+    } catch (error: any) {
+      toast.error(`Gagal sinkron OPEX settings: ${error.message}`)
+    }
   }
 
-  // Materials
-  const addMaterial = useCallback((m: Omit<RawMaterial, 'id' | 'createdAt' | 'pricePerUse'>) => {
+  const addMaterial = useCallback(async (m: Omit<RawMaterial, 'id' | 'createdAt' | 'pricePerUse'>) => {
     const pricePerUse = m.conversionRate > 0 && m.yieldPct > 0
-      ? m.buyPrice / m.conversionRate / (m.yieldPct / 100)
+      ? Math.round(m.buyPrice / m.conversionRate / (m.yieldPct / 100))
       : 0
-    const newM: RawMaterial = {
-      ...m, id: crypto.randomUUID(), createdAt: new Date().toISOString(),
-      pricePerUse: Math.round(pricePerUse),
+
+    await req('/api/raw-materials', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: m.name,
+        category: m.category,
+        buy_price: m.buyPrice,
+        buy_unit: m.buyUnit,
+        conversion_rate: m.conversionRate,
+        yield_pct: m.yieldPct,
+        price_per_use: pricePerUse,
+      }),
+    })
+
+    await reloadFromDb()
+  }, [reloadFromDb])
+
+  const updateMaterial = useCallback(async (id: string, updates: Partial<RawMaterial>) => {
+    const current = materials.find((m) => m.id === id)
+    if (!current) return
+
+    const merged = { ...current, ...updates }
+    const pricePerUse = merged.conversionRate > 0 && merged.yieldPct > 0
+      ? Math.round(merged.buyPrice / merged.conversionRate / (merged.yieldPct / 100))
+      : 0
+
+    await req(`/api/raw-materials/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: merged.name,
+        category: merged.category,
+        buy_price: merged.buyPrice,
+        buy_unit: merged.buyUnit,
+        conversion_rate: merged.conversionRate,
+        yield_pct: merged.yieldPct,
+        price_per_use: pricePerUse,
+      }),
+    })
+
+    await reloadFromDb()
+  }, [materials, reloadFromDb])
+
+  const deleteMaterial = useCallback(async (id: string) => {
+    await req(`/api/raw-materials/${id}`, { method: 'DELETE' })
+    await reloadFromDb()
+  }, [reloadFromDb])
+
+  const saveRecipe = useCallback(async (recipe: Recipe) => {
+    const payload = {
+      name: recipe.name,
+      description: recipe.notes || null,
+      total_hpp: recipe.totalHPP,
+      opex_per_portion: opex.opexPerPortion,
+      ingredients: recipe.ingredients.map((ing) => ({
+        material_id: ing.materialId,
+        quantity: ing.qty,
+        unit: ing.useUnit,
+        calculated_cost: ing.costPerPortion,
+      })),
     }
-    setMaterials(prev => {
-      const next = [...prev, newM]
-      save(STORAGE_KEYS.materials, next)
-      return next
-    })
-    return newM
-  }, [])
 
-  const updateMaterial = useCallback((id: string, updates: Partial<RawMaterial>) => {
-    setMaterials(prev => {
-      const next = prev.map(m => {
-        if (m.id !== id) return m
-        const merged = { ...m, ...updates }
-        merged.pricePerUse = merged.conversionRate > 0 && merged.yieldPct > 0
-          ? Math.round(merged.buyPrice / merged.conversionRate / (merged.yieldPct / 100))
-          : 0
-        return merged
+    if (recipes.find((r) => r.id === recipe.id)) {
+      await req(`/api/recipes/${recipe.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
       })
-      save(STORAGE_KEYS.materials, next)
-      return next
-    })
-  }, [])
+    } else {
+      await req('/api/recipes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    }
 
-  const deleteMaterial = useCallback((id: string) => {
-    setMaterials(prev => {
-      const next = prev.filter(m => m.id !== id)
-      save(STORAGE_KEYS.materials, next)
-      return next
-    })
-  }, [])
+    await reloadFromDb()
+  }, [opex.opexPerPortion, recipes, reloadFromDb])
 
-  // Recipes
-  const saveRecipe = useCallback((recipe: Recipe) => {
-    setRecipes(prev => {
-      const exists = prev.find(r => r.id === recipe.id)
-      const next = exists ? prev.map(r => r.id === recipe.id ? recipe : r) : [...prev, recipe]
-      save(STORAGE_KEYS.recipes, next)
-      return next
-    })
-  }, [])
+  const deleteRecipe = useCallback(async (id: string) => {
+    await req(`/api/recipes/${id}`, { method: 'DELETE' })
+    await reloadFromDb()
+  }, [reloadFromDb])
 
-  const deleteRecipe = useCallback((id: string) => {
-    setRecipes(prev => {
-      const next = prev.filter(r => r.id !== id)
-      save(STORAGE_KEYS.recipes, next)
-      return next
-    })
-  }, [])
-
-  const cloneRecipe = useCallback((id: string) => {
-    const original = recipes.find(r => r.id === id)
+  const cloneRecipe = useCallback(async (id: string) => {
+    const original = recipes.find((r) => r.id === id)
     if (!original) return
-    const clone: Recipe = {
+
+    await saveRecipe({
       ...original,
       id: crypto.randomUUID(),
-      name: original.name + ' (Copy)',
+      name: `${original.name} (Copy)`,
       createdAt: new Date().toISOString(),
-    }
-    setRecipes(prev => {
-      const next = [...prev, clone]
-      save(STORAGE_KEYS.recipes, next)
+    })
+  }, [recipes, saveRecipe])
+
+  const updateOpex = useCallback(async (updates: Partial<OpexConfig>) => {
+    setOpex((prev) => {
+      const merged = { ...prev, ...updates }
+      const total = merged.items.reduce((s, i) => s + i.monthlyAmount, 0)
+      const perPortion = merged.targetPortionsPerMonth > 0 ? Math.round(total / merged.targetPortionsPerMonth) : 0
+      const next = { ...merged, totalMonthlyOpex: total, opexPerPortion: perPortion }
+      void syncOpexSettings(next)
       return next
     })
-    return clone
-  }, [recipes])
+  }, [opexSettingsId])
 
-  // Opex
-  const updateOpex = useCallback((updates: Partial<OpexConfig>) => {
-    setOpex(prev => {
-      const merged = { ...prev, ...updates }
-      const recalced = recalcOpex(merged)
-      save(STORAGE_KEYS.opex, recalced)
-      return recalced
+  const addOpexItem = useCallback(async (item: Omit<typeof opex.items[0], 'id'>) => {
+    await req('/api/opex', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'config',
+        name: item.name,
+        category: item.category,
+        monthly_amount: item.monthlyAmount,
+      }),
     })
-  }, [])
+    await reloadFromDb()
+  }, [reloadFromDb])
 
-  const addOpexItem = useCallback((item: Omit<typeof opex.items[0], 'id'>) => {
-    setOpex(prev => {
-      const newItem = { ...item, id: crypto.randomUUID() }
-      const updated = { ...prev, items: [...prev.items, newItem] }
-      const recalced = recalcOpex(updated)
-      save(STORAGE_KEYS.opex, recalced)
-      return recalced
-    })
-  }, [])
+  const updateOpexItem = useCallback(async (id: string, updates: Partial<typeof opex.items[0]>) => {
+    const current = opex.items.find((i) => i.id === id)
+    if (!current) return
 
-  const updateOpexItem = useCallback((id: string, updates: Partial<typeof opex.items[0]>) => {
-    setOpex(prev => {
-      const items = prev.items.map(i => i.id === id ? { ...i, ...updates } : i)
-      const recalced = recalcOpex({ ...prev, items })
-      save(STORAGE_KEYS.opex, recalced)
-      return recalced
+    const merged = { ...current, ...updates }
+    await req(`/api/opex/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: merged.name,
+        category: merged.category,
+        monthly_amount: merged.monthlyAmount,
+      }),
     })
-  }, [])
+    await reloadFromDb()
+  }, [opex.items, reloadFromDb])
 
-  const deleteOpexItem = useCallback((id: string) => {
-    setOpex(prev => {
-      const items = prev.items.filter(i => i.id !== id)
-      const recalced = recalcOpex({ ...prev, items })
-      save(STORAGE_KEYS.opex, recalced)
-      return recalced
-    })
-  }, [])
+  const deleteOpexItem = useCallback(async (id: string) => {
+    await req(`/api/opex/${id}`, { method: 'DELETE' })
+    await reloadFromDb()
+  }, [reloadFromDb])
 
   return {
     loaded, materials, recipes, opex,
