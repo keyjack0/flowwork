@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
         from = dateFrom ? new Date(dateFrom) : startOfMonth(now)
         to = dateTo ? endOfDay(new Date(dateTo)) : endOfDay(now)
         break
+      case 'all':
+        from = new Date(0); to = now; break
       default:
         from = startOfMonth(now); to = endOfMonth(now)
     }

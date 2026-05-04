@@ -14,7 +14,7 @@ import { id as localeId } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
 // ─── Types ───────────────────────────────────────────────
-type Period = 'today' | 'yesterday' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'custom'
+type Period = 'today' | 'yesterday' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'custom'
 type Tab = 'overview' | 'transactions' | 'pl' | 'expenses'
 
 interface ReportData {
@@ -43,6 +43,7 @@ const PERIODS: { id: Period; label: string; short: string }[] = [
   { id: 'lastweek', label: 'Minggu Lalu', short: 'Minggu Lalu' },
   { id: 'month', label: 'Bulan Ini', short: 'Bulan Ini' },
   { id: 'lastmonth', label: 'Bulan Lalu', short: 'Bulan Lalu' },
+  { id: 'all', label: 'Riwayat', short: 'Riwayat' },
   { id: 'custom', label: 'Pilih Tanggal', short: 'Custom' },
 ]
 
